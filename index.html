@@ -6,7 +6,7 @@
     <title>Аниме Плеер</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #0f0f1a; color: white; }
+        body { font-family: Arial, sans-serif; background: #0f0f1a; color: white; text-align: center; }
         h1 { color: #00ffcc; }
         video { width: 100%; max-width: 800px; margin: 20px auto; border-radius: 10px; }
         .info { margin: 20px; }
@@ -16,7 +16,7 @@
 <body>
     <h1>📺 AniPlayer</h1>
 
-    <div id="info" class="info">
+    <div class="info">
         <img id="poster" class="poster" src="" alt="Обложка" style="display: none;" />
         <p><strong id="title">Загрузка...</strong></p>
     </div>
@@ -24,6 +24,7 @@
     <video id="video" controls></video>
 
     <script>
+        // Получаем параметры из URL
         const urlParams = new URLSearchParams(window.location.search);
         const title = urlParams.get('title') || 'Аниме';
         const src = urlParams.get('src');
@@ -37,19 +38,31 @@
         }
 
         const video = document.getElementById('video');
-        const videoSrc = src;
 
+        if (!src) {
+            alert('Нет ссылки на видео. Используйте кнопку из бота.');
+            document.getElementById('title').textContent = 'Видео не найдено';
+            video.style.display = 'none';
+            throw new Error('No src in URL');
+        }
+
+        // Воспроизводим через HLS.js
         if (Hls.isSupported()) {
             const hls = new Hls();
-            hls.loadSource(videoSrc);
+            hls.loadSource(src);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = videoSrc;
+            video.src = src;
             video.addEventListener('loadedmetadata', () => video.play());
         } else {
-            alert('Ваш браузер не поддерживает HLS. Попробуйте VLC или другой плеер.');
+            alert('Ваш браузер не поддерживает HLS. Попробуйте VLC.');
         }
     </script>
 </body>
+</html>
+        }
+    </script>
+</body>
+
 </html>
