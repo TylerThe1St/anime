@@ -1,68 +1,139 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Аниме Плеер</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <style>
-        body { font-family: Arial, sans-serif; background: #0f0f1a; color: white; text-align: center; }
-        h1 { color: #00ffcc; }
-        video { width: 100%; max-width: 800px; margin: 20px auto; border-radius: 10px; }
-        .info { margin: 20px; }
-        .poster { max-width: 200px; border-radius: 8px; margin: 10px auto; display: block; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AniPlayer</title>
+  <!-- Video.js CSS -->
+  <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f141f;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #00b3ff;
+    }
+    .poster {
+      max-width: 200px;
+      border-radius: 8px;
+      margin: 10px auto;
+      display: block;
+    }
+    .title {
+      font-size: 1.5em;
+      margin: 10px 0;
+      color: #fff;
+    }
+    #video-container {
+      margin-top: 20px;
+    }
+    .vjs-video {
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 16 / 9;
+      margin: 0 auto;
+    }
+    .error {
+      color: #ff4444;
+    }
+  </style>
 </head>
 <body>
-    <h1>📺 AniPlayer</h1>
-
-    <div class="info">
-        <img id="poster" class="poster" src="" alt="Обложка" style="display: none;" />
-        <p><strong id="title">Загрузка...</strong></p>
+  <div class="container">
+    <h1>AniPlayer</h1>
+    <div id="loading">Загрузка...</div>
+    <div id="content" style="display: none;">
+      <img id="poster" class="poster" />
+      <div class="title" id="title"></div>
+      <div id="video-container">
+        <video
+          id="video"
+          class="video-js vjs-big-play-centered"
+          controls
+          preload="auto"
+          width="800"
+          height="450"
+          data-setup="{}"
+        >
+          <p class="vjs-no-js">
+            Для воспроизведения требуется поддержка JavaScript.
+          </p>
+        </video>
+      </div>
     </div>
+    <div id="error" class="error" style="display: none;"></div>
+  </div>
 
-    <video id="video" controls></video>
+  <!-- Video.js + HLS.js -->
+  <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
-    <script>
-        // Получаем параметры из URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const title = urlParams.get('title') || 'Аниме';
-        const src = urlParams.get('src');
-        const poster = urlParams.get('poster');
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const title = urlParams.get("title");
+      const src = urlParams.get("src");
+      const poster = urlParams.get("poster");
 
-        document.getElementById('title').textContent = title;
-        const posterImg = document.getElementById('poster');
-        if (poster) {
-            posterImg.src = poster;
-            posterImg.style.display = 'block';
-        }
+      const loading = document.getElementById("loading");
+      const content = document.getElementById("content");
+      const errorDiv = document.getElementById("error");
+      const video = document.getElementById("video");
+      const videoPlayer = videojs(video);
 
-        const video = document.getElementById('video');
+      if (!src) {
+        errorDiv.textContent = "❌ Не указан источник видео.";
+        errorDiv.style.display = "block";
+        loading.style.display = "none";
+        return;
+      }
 
-        if (!src) {
-            alert('Нет ссылки на видео. Используйте кнопку из бота.');
-            document.getElementById('title').textContent = 'Видео не найдено';
-            video.style.display = 'none';
-            throw new Error('No src in URL');
-        }
+      // Установка данных
+      document.getElementById("title").textContent = title || "Аниме";
+      if (poster) {
+        document.getElementById("poster").src = poster;
+      }
 
-        // Воспроизводим через HLS.js
-        if (Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(src);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = src;
-            video.addEventListener('loadedmetadata', () => video.play());
-        } else {
-            alert('Ваш браузер не поддерживает HLS. Попробуйте VLC.');
-        }
-    </script>
+      // Воспроизведение .m3u8
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          loading.style.display = "none";
+          content.style.display = "block";
+          videoPlayer.play().catch(e => console.log("Авто-воспроизведение заблокировано:", e));
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            errorDiv.textContent = `Ошибка видео: ${data.type}`;
+            errorDiv.style.display = "block";
+            loading.style.display = "none";
+          }
+        });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        // Для Safari
+        video.src = src;
+        video.addEventListener("loadedmetadata", () => {
+          loading.style.display = "none";
+          content.style.display = "block";
+          videoPlayer.play().catch(e => console.log("Авто-воспроизведение заблокировано:", e));
+        });
+      } else {
+        errorDiv.textContent = "❌ Браузер не поддерживает воспроизведение .m3u8";
+        errorDiv.style.display = "block";
+        loading.style.display = "none";
+      }
+    });
+  </script>
 </body>
-</html>
-        }
-    </script>
-</body>
-
 </html>
