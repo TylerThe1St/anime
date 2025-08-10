@@ -4,11 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AniPlayer</title>
-  <!-- Video.js CSS -->
   <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       background: #0f141f;
       color: white;
       margin: 0;
@@ -19,32 +18,13 @@
       max-width: 900px;
       margin: 0 auto;
     }
-    h1 {
-      color: #00b3ff;
-    }
-    .poster {
-      max-width: 200px;
-      border-radius: 8px;
-      margin: 10px auto;
-      display: block;
-    }
-    .title {
-      font-size: 1.5em;
-      margin: 10px 0;
-      color: #fff;
-    }
-    #video-container {
-      margin-top: 20px;
-    }
-    .vjs-video {
-      width: 100%;
-      max-width: 800px;
-      aspect-ratio: 16 / 9;
-      margin: 0 auto;
-    }
-    .error {
-      color: #ff4444;
-    }
+    h1 { color: #00b3ff; }
+    .poster { max-width: 200px; border-radius: 8px; margin: 10px auto; display: block; }
+    .title { font-size: 1.5em; margin: 10px 0; }
+    #video-container { margin-top: 20px; }
+    .vjs-video { width: 100%; max-width: 800px; aspect-ratio: 16 / 9; margin: 0 auto; }
+    .error { color: #ff4444; margin-top: 20px; }
+    #loading { font-size: 1.2em; margin-top: 50px; }
   </style>
 </head>
 <body>
@@ -63,26 +43,21 @@
           width="800"
           height="450"
           data-setup="{}"
-        >
-          <p class="vjs-no-js">
-            Для воспроизведения требуется поддержка JavaScript.
-          </p>
-        </video>
+        ></video>
       </div>
     </div>
     <div id="error" class="error" style="display: none;"></div>
   </div>
 
-  <!-- Video.js + HLS.js -->
   <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const title = urlParams.get("title");
-      const src = urlParams.get("src");
-      const poster = urlParams.get("poster");
+      const title = decodeURIComponent(urlParams.get("title") || "");
+      const src = decodeURIComponent(urlParams.get("src") || "");
+      const poster = decodeURIComponent(urlParams.get("poster") || "");
+      const info = decodeURIComponent(urlParams.get("info") || "");
 
       const loading = document.getElementById("loading");
       const content = document.getElementById("content");
@@ -90,49 +65,65 @@
       const video = document.getElementById("video");
       const videoPlayer = videojs(video);
 
-      if (!src) {
-        errorDiv.textContent = "❌ Не указан источник видео.";
-        errorDiv.style.display = "block";
+      if (info) {
         loading.style.display = "none";
+        errorDiv.textContent = info;
+        errorDiv.style.display = "block";
         return;
       }
 
-      // Установка данных
-      document.getElementById("title").textContent = title || "Аниме";
-      if (poster) {
-        document.getElementById("poster").src = poster;
+      if (!src) {
+        loading.style.display = "none";
+        errorDiv.textContent = "❌ Нет ссылки на видео.";
+        errorDiv.style.display = "block";
+        return;
       }
 
-      // Воспроизведение .m3u8
-      if (Hls.isSupported()) {
-        const hls = new Hls();
-        hls.loadSource(src);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          loading.style.display = "none";
-          content.style.display = "block";
-          videoPlayer.play().catch(e => console.log("Авто-воспроизведение заблокировано:", e));
-        });
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            errorDiv.textContent = `Ошибка видео: ${data.type}`;
-            errorDiv.style.display = "block";
+      document.getElementById("title").textContent = title;
+      if (poster) document.getElementById("poster").src = poster;
+
+      const playVideo = (url) => {
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
             loading.style.display = "none";
-          }
-        });
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        // Для Safari
-        video.src = src;
-        video.addEventListener("loadedmetadata", () => {
+            content.style.display = "block";
+            videoPlayer.play().catch(e => console.warn("Автовоспроизведение заблокировано:", e));
+          });
+          hls.on(Hls.Events.ERROR, (e, data) => {
+            if (data.fatal) {
+              errorDiv.textContent = `Ошибка потока: ${data.type}`;
+              errorDiv.style.display = "block";
+              loading.style.display = "none";
+            }
+          });
+        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = url;
+          video.addEventListener("loadedmetadata", () => {
+            loading.style.display = "none";
+            content.style.display = "block";
+            videoPlayer.play().catch(e => console.warn("Автовоспроизведение заблокировано:", e));
+          });
+        } else {
+          errorDiv.textContent = "❌ Браузер не поддерживает .m3u8";
+          errorDiv.style.display = "block";
           loading.style.display = "none";
-          content.style.display = "block";
-          videoPlayer.play().catch(e => console.log("Авто-воспроизведение заблокировано:", e));
+        }
+      };
+
+      // Попробуем с CORS прокси, если напрямую не работает
+      const directSrc = src;
+      const proxySrc = `https://corsproxy.io/?${encodeURIComponent(src)}`;
+
+      // Сначала пробуем напрямую
+      fetch(directSrc, { method: 'HEAD' })
+        .then(() => playVideo(directSrc))
+        .catch(() => {
+          console.log("Прямой доступ не удался, используем прокси...");
+          playVideo(proxySrc);
         });
-      } else {
-        errorDiv.textContent = "❌ Браузер не поддерживает воспроизведение .m3u8";
-        errorDiv.style.display = "block";
-        loading.style.display = "none";
-      }
     });
   </script>
 </body>
