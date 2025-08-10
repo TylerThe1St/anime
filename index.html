@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Аниме Плеер</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #0f0f1a; color: white; }
+        h1 { color: #00ffcc; }
+        video { width: 100%; max-width: 800px; margin: 20px auto; border-radius: 10px; }
+        .info { margin: 20px; }
+        .poster { max-width: 200px; border-radius: 8px; margin: 10px auto; display: block; }
+    </style>
+</head>
+<body>
+    <h1>📺 AniPlayer</h1>
+
+    <div id="info" class="info">
+        <img id="poster" class="poster" src="" alt="Обложка" style="display: none;" />
+        <p><strong id="title">Загрузка...</strong></p>
+    </div>
+
+    <video id="video" controls></video>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const title = urlParams.get('title') || 'Аниме';
+        const src = urlParams.get('src');
+        const poster = urlParams.get('poster');
+
+        document.getElementById('title').textContent = title;
+        const posterImg = document.getElementById('poster');
+        if (poster) {
+            posterImg.src = poster;
+            posterImg.style.display = 'block';
+        }
+
+        const video = document.getElementById('video');
+        const videoSrc = src;
+
+        if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(videoSrc);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = videoSrc;
+            video.addEventListener('loadedmetadata', () => video.play());
+        } else {
+            alert('Ваш браузер не поддерживает HLS. Попробуйте VLC или другой плеер.');
+        }
+    </script>
+</body>
+</html>
